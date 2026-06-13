@@ -17,17 +17,17 @@ By pulling live prediction data and pregame metrics from ESPN and correlating th
 
 ## Core Architecture
 
-### 1. Ingestion Pipeline (`espn_schedule.py`)
+### Ingestion Pipeline (`espn_schedule.py`)
 Handles the daily retrieval of sports schedules, parsing game details, and fetching pregame probabilities (Implied Win %, Spread, Expected Points). It normalizes team short names to reliably map to Polymarket slugs.
 
-### 2. Database Schema
+### Database Schema
 A relational PostgreSQL database that stores the foundational data needed for historical backtesting and live comparisons:
 * `Sports` & `Leagues`
 * `Matches` (Unique ESPN IDs)
 * `Teams` & `ShortNames` (For cross-platform mapping)
 * `Pregame Predictions` 
 
-### 3. Live Price Matching (In Development)
+### Live Price Matching (In Development)
 A high-speed layer utilizing Valkey to hold rapidly changing state data:
 * Live Polymarket odds vs. Live ESPN Win Probability
 * Orderbook depth analysis for market liquidity and resistance
@@ -35,8 +35,3 @@ A high-speed layer utilizing Valkey to hold rapidly changing state data:
 ## Deployment
 This project is containerized using `docker-compose` (running Postgres and Valkey) and is designed to be hosted on a cloud server (e.g., DigitalOcean Droplet). Automated ingestion is handled via standard system cron jobs triggering the Python ETL scripts.
 
-## Roadmap / To-Do
-- [ ] Finalize live Polymarket data ingestion and orderbook parsing.
-- [ ] Implement Valkey for high-speed live odds caching.
-- [ ] Build the comparative logic engine (Price vs. Probability).
-- [ ] Set up production Droplet with automated cron scheduling.
