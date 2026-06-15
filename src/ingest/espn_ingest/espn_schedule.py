@@ -102,11 +102,8 @@ class ESPNScheduleIngest:
         """
         Appends pregame win probabilities to a list of previously parsed games.
 
-        Args:
-            cleaned_games (List[Dict[str, Any]]): The list of game dictionaries from `ingest_schedule`.
-
-        Returns:
-            List[Dict[str, Any]]: An ordered list of games enriched with home and away win percentages.
+        :param cleaned_games: The list of game dictionaries from `ingest_schedule`.
+        :return: List[Dict[str, Any]]: An ordered list of games enriched with home and away win percentages.
         """
         if not cleaned_games:
             logger.info("No games provided to enrich.")
@@ -163,7 +160,6 @@ class ESPNScheduleIngest:
 
         return ordered_enriched_games
 
-    # TODO - Start Database Ingestion, have self-cleaning features (ex. any finished games delete)
     def save_to_db(self, enriched_games: List[Dict[str, Any]]) -> None:
         """
         Saves new games to db or updates existing games to db by espn_id.
@@ -206,7 +202,7 @@ class ESPNScheduleIngest:
         """
         db = SessionLocal()
         try:
-            deleted_count = db.query(Match).filter(Match.is_completed == True).delete()
+            deleted_count = db.query(Match).filter( (Match.is_completed == True) |(Match.status_name == "STATUS_POSTPONED")).delete()
             db.commit()
             if deleted_count > 0:
                 logger.info("Successfully deleted %d games.", deleted_count)
@@ -240,14 +236,10 @@ class ESPNScheduleIngest:
 
 
 
-
-
-
-
 if __name__ == '__main__':
     init_db()
 
-    target_league = 'nba'
+    target_league = 'mlb'
     league_config = ESPN_CONFIG.get(target_league)
 
     if not league_config:
