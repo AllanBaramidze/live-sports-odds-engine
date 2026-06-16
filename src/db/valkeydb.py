@@ -13,7 +13,7 @@ def sync_matches_from_postgres():
     - Add new matches from Postgres
     - Remove matches from Valkey that no longer exist in Postgres
     """
-    with get_db() as db:  # <-- THIS is the fix, no more next()
+    with get_db() as db:  
         matches = db.query(Match).all()
 
         postgres_espn_ids = {str(match.espn_id) for match in matches}
