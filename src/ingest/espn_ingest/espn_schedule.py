@@ -1,7 +1,8 @@
 import logging
 import pprint
 from typing import Any, Dict, List, Optional
-
+from datetime import datetime, timedelta
+from src.utils.polymarket_utils import get_teams
 from django.conf import settings
 
 # Configure Django settings before importing dependent local modules
@@ -47,55 +48,68 @@ class ESPNScheduleIngest:
 
     def ingest_schedule(self) -> List[Dict[str, Any]]:
         """
-        Fetches and parses the daily schedule data from the ESPN scoreboard API.
-
-        Returns:
-            List[Dict[str, Any]]: A list of dictionaries, where each dictionary
-            represents the core details of a scheduled game.
+        Fetches and parses the schedule data for yesterday and today.
         """
-        logger.info("Fetching schedule for %s - %s...", self.sport, self.league)
-
-        sb_response = self.client.get_scoreboard(self.sport, self.league, None, 100)
-
-        # Defensive check: ensure data exists before parsing
-        if not sb_response or not hasattr(sb_response, 'data'):
-            logger.warning("Invalid or empty response received from scoreboard API.")
-            return []
-
-        events: List[Dict[str, Any]] = sb_response.data.get("events", [])
         cleaned_games: List[Dict[str, Any]] = []
 
-        for event in events:
-            competitions = event.get("competitions", [])
-            competition_data = competitions[0] if competitions else {}
-            competitors_data = competition_data.get("competitors", [])
+        yesterday_str = (datetime.now() - timedelta(days=1)).strftime('%Y%m%d')
+        today_str = datetime.now().strftime('%Y%m%d')
 
-            home_team = next((t for t in competitors_data if t.get('homeAway') == 'home'), {})
-            away_team = next((t for t in competitors_data if t.get('homeAway') == 'away'), {})
+        target_dates = [yesterday_str, today_str]
 
-            home_team_name = home_team.get('team', {}).get('displayName', 'Unknown Home Team')
-            away_team_name = away_team.get('team', {}).get('displayName', 'Unknown Away Team')
+        for target_date in target_dates:
+            logger.info("Fetching schedule for %s - %s on date %s...", self.sport, self.league, target_date)
 
-            status_data = event.get('status', {})
-            status_type = status_data.get('type', {})
-            completed_status = status_type.get('completed', False)
-            is_game_finished = str(completed_status).lower() == 'true'
+            # Pass the target_date instead of None
+            sb_response = self.client.get_scoreboard(sport=self.sport, league=self.league, date=target_date, limit=100)
 
-            game_data = {
-                'sport': self.sport,
-                'league': self.league,
-                'espn_id': event.get('id'),
-                'date': event.get('date'),
-                'home_team': home_team_name,
-                'away_team': away_team_name,
-                'name': event.get('name'),
-                'short_name': event.get('shortName'),
-                'status_name': status_type.get('name'),
-                'is_completed': is_game_finished,
-            }
-            cleaned_games.append(game_data)
+            if not sb_response or not hasattr(sb_response, 'data'):
+                logger.warning("Invalid or empty response for date %s", target_date)
+                continue
 
-        logger.info("Successfully ingested %d games.", len(cleaned_games))
+            events: List[Dict[str, Any]] = sb_response.data.get("events", [])
+
+            for event in events:
+                competitions = event.get("competitions", [])
+                competition_data = competitions[0] if competitions else {}
+                competitors_data = competition_data.get("competitors", [])
+
+                home_team = next((t for t in competitors_data if t.get('homeAway') == 'home'), {})
+                away_team = next((t for t in competitors_data if t.get('homeAway') == 'away'), {})
+
+                home_team_name = home_team.get('team', {}).get('displayName', 'Unknown Home Team')
+                away_team_name = away_team.get('team', {}).get('displayName', 'Unknown Away Team')
+
+                status_data = event.get('status', {})
+                status_type = status_data.get('type', {})
+                is_game_finished = status_type.get('completed', False)
+
+                shortName = event.get('shortName')
+                league_teams = get_teams(league=f"{self.league}")
+                home_shortname_polymarket = league_teams.get(home_team_name, {}).get('abbreviation')
+                away_shortname_polymarket = league_teams.get(away_team_name, {}).get('abbreviation')
+
+                date_string = event.get('date')
+                formatted_matchup = f"{away_shortname_polymarket}-{home_shortname_polymarket}"
+                formatted_date = date_string[:10] if date_string else "Unknown-Date"
+                polymarket_str = f"{self.league}-{formatted_matchup}-{formatted_date}"
+
+                game_data = {
+                    'sport': self.sport,
+                    'league': self.league,
+                    'espn_id': event.get('id'),
+                    'date': date_string,
+                    'home_team': home_team_name,
+                    'away_team': away_team_name,
+                    'name': event.get('name'),
+                    'short_name': shortName,
+                    'poly_slug': polymarket_str,
+                    'status_name': status_type.get('name'),
+                    'is_completed': is_game_finished,
+                }
+                cleaned_games.append(game_data)
+
+        logger.info("Successfully ingested %d total games across 2 days.", len(cleaned_games))
         return cleaned_games
 
     def enrich_probabilities(self, cleaned_games: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -116,6 +130,11 @@ class ESPNScheduleIngest:
             game_id = game.get('espn_id')
             if not game_id:
                 logger.warning("Game missing 'espn_id', skipping enrichment for: %s", game.get('name'))
+                continue
+
+            if game.get('is_completed'):
+                logger.info("Skipping enrichment for game %s", game_id)
+                ordered_enriched_games.append(game) # only pass unenriched games
                 continue
 
             get_prediction = self.client.get_game_predictor(
@@ -153,6 +172,7 @@ class ESPNScheduleIngest:
                 'home_team_win_percentage': home_win_prob,
                 'name': game['name'],
                 'short_name': game['short_name'],
+                'poly_slug': game.get('poly_slug'),
                 'status_name': game['status_name'],
                 'is_completed': game['is_completed']
             }

@@ -33,6 +33,7 @@ class Match(Base):
     home_team_win_percentage = Column(Float)
     name = Column(String)
     short_name = Column(String)
+    poly_slug = Column(String) # polymarket.com('/sports/nba/nba-nyk-sas-2026-06-13')
     status_name = Column(String)
     is_completed = Column(Boolean)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
