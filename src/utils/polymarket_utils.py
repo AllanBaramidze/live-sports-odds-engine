@@ -26,7 +26,7 @@ def get_match_market(client: Any, poly_slug: str, search_query: Optional[str] = 
 
         event = client.get_event(id=recovered_event_id)
 
-        # Cleaner list comprehension
+        # cleaner list comp,
         return [parse_market_to_dict(m) for m in event.markets] if event.markets else []
 
 
@@ -63,7 +63,6 @@ def find_sports_error_catcher(client: Any, search_query: str, target_slug: str) 
     # Replaced print with logger
     logger.warning(f"No match found for slug: {target_slug}")
     return None
-
 
 
 def parse_market_to_dict(market: Market) -> dict[str, Any]:
@@ -107,6 +106,7 @@ def parse_market_to_dict(market: Market) -> dict[str, Any]:
         }
     }
 
+
 def main():
     from polymarket import PublicClient
 
@@ -114,8 +114,8 @@ def main():
         # Pass the active client into your utility functions
         market_info = get_match_market(
             client=client,
-            poly_slug="fifwc-jor-alg-2026-06-22",
-            search_query="Jordan vs Algeria"
+            poly_slug="fifwc-fra-irq-2026-06-22",
+            search_query="France vs Iraq"
         )
 
         for market in market_info:

@@ -3,6 +3,7 @@ import pprint
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timedelta
 from src.utils.polymarket_utils import get_teams
+from polymarket import PublicClient
 from django.conf import settings
 
 # Configure Django settings before importing dependent local modules
@@ -48,19 +49,22 @@ class ESPNScheduleIngest:
 
     def ingest_schedule(self) -> List[Dict[str, Any]]:
         """
-        Fetches and parses the schedule data for yesterday and today.
+        Calls the ESPN API and parses the schedule. For the {self.league} defined for the current dates Matches
+        :return: List[Dict[str, Any]]; list of matches with coloumns without any probabilities
         """
         cleaned_games: List[Dict[str, Any]] = []
 
         yesterday_str = (datetime.now() - timedelta(days=1)).strftime('%Y%m%d')
         today_str = datetime.now().strftime('%Y%m%d')
-
         target_dates = [yesterday_str, today_str]
+
+        # Fetches the Teams Once
+        logger.info("Fetching team mappings for %s...", self.league)
+        with PublicClient() as poly_client:
+            league_teams = get_teams(client=poly_client, league=self.league)
 
         for target_date in target_dates:
             logger.info("Fetching schedule for %s - %s on date %s...", self.sport, self.league, target_date)
-
-            # Pass the target_date instead of None
             sb_response = self.client.get_scoreboard(sport=self.sport, league=self.league, date=target_date, limit=100)
 
             if not sb_response or not hasattr(sb_response, 'data'):
@@ -84,8 +88,9 @@ class ESPNScheduleIngest:
                 status_type = status_data.get('type', {})
                 is_game_finished = status_type.get('completed', False)
 
-                shortName = event.get('shortName')
-                league_teams = get_teams(league=f"{self.league}")
+                short_name = event.get('shortName')  # Fixed to snake_case
+
+                # Using the pre-fetched dictionary
                 home_shortname_polymarket = league_teams.get(home_team_name, {}).get('abbreviation')
                 away_shortname_polymarket = league_teams.get(away_team_name, {}).get('abbreviation')
 
@@ -102,7 +107,7 @@ class ESPNScheduleIngest:
                     'home_team': home_team_name,
                     'away_team': away_team_name,
                     'name': event.get('name'),
-                    'short_name': shortName,
+                    'short_name': short_name,
                     'poly_slug': polymarket_str,
                     'status_name': status_type.get('name'),
                     'is_completed': is_game_finished,
@@ -181,39 +186,28 @@ class ESPNScheduleIngest:
         return ordered_enriched_games
 
     def save_to_db(self, enriched_games: List[Dict[str, Any]]) -> None:
-        """
-        Saves new games to db or updates existing games to db by espn_id.
-        :param enriched_games:
-        :return:
-        """
         if not enriched_games:
             logger.info("No games provided to save.")
             return
 
-        db = SessionLocal()
+        # Use a Context Manager for the DB connection
+        with SessionLocal() as db:
+            try:
+                for game_data in enriched_games:
+                    existing_game = db.query(Match).filter(Match.espn_id == game_data.get('espn_id')).first()
 
-        try:
-            for game_data in enriched_games:
-                logger.info("Saving game %s. Is completed? %s", game_data['name'], game_data['is_completed'])
-                # check if already exists
-                existing_game = db.query(Match).filter(Match.espn_id == game_data.get('espn_id')).first()
+                    if existing_game:
+                        for key, value in game_data.items():
+                            setattr(existing_game, key, value)
+                    else:
+                        new_game = Match(**game_data)
+                        db.add(new_game)
 
-                if existing_game:
-                    # update with new data
-                    for key, value in game_data.items():
-                        setattr(existing_game, key, value)
-                else:
-                    # create new data
-                    new_game = Match(**game_data)
-                    db.add(new_game)
-
-            db.commit()
-            logger.info("Successfully saved %d games.", len(enriched_games))
-        except Exception as e:
-            db.rollback()
-            logger.error("Failed to save to db: %s", e)
-        finally:
-            db.close()
+                db.commit()
+                logger.info("Successfully saved %d games.", len(enriched_games))
+            except Exception as e:
+                db.rollback()
+                logger.error("Failed to save to db: %s", e)
 
     def cleanup_finished_games(self) -> None:
         """
@@ -237,6 +231,7 @@ class ESPNScheduleIngest:
 
     def read_active_games(self) -> None:
         """
+        kind've a tester, kind've not.
         Reads and logs the upcoming/active games.
         :return:
         """
