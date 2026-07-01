@@ -5,34 +5,46 @@ from polymarket import Market
 
 logger = logging.getLogger(__name__)
 
+#TODO rework and add a 'tag' feature where if the game is an Event to be identified as an event and same for Market
 
-def get_match_market(client: Any, poly_slug: str, search_query: Optional[str] = None) -> list[dict[str, Any]]:
+
+def get_match_market_by_slug(client: Any, poly_slug: str, search_query: Optional[str] = None) -> list[dict[str, Any]]:
     """
     Returns the market by slug. If it's a grouped event (like Soccer),
     uses search_query to recover the event ID and returns all associated markets.
     """
-    try:
-        market = client.get_market(slug=poly_slug)
-        return [parse_market_to_dict(market)]
 
-    except Exception as e: # either Event or Not an Active Market / Event
-        if not search_query:
-            raise ValueError(f"Lookup failed for '{poly_slug}'. No search_query provided.") from e
+    market = client.get_market(slug=poly_slug) # automatically means it's a market, NOT an event
 
-        recovered_event_id = find_sports_error_catcher(client, search_query, poly_slug)
+    if not market:
+        raise ValueError(f"Market '{poly_slug}' not found.")
+        # check if its an event by search
+        # construct search_query from the database match name
+        get_event_id = find_sports_error_catcher(client, search_query, poly_slug)
 
-        if not recovered_event_id:
-            raise ValueError(f"Fallback search failed for '{search_query}'.")
-
-        event = client.get_event(id=recovered_event_id)
-
-        # cleaner list comp,
-        return [parse_market_to_dict(m) for m in event.markets] if event.markets else []
+    return [parse_market_to_dict(market)]
 
 
+
+
+
+# Get Match by ID
+def get_event_by_search(client: Any, poly_slug: str, search_query: Optional[str] = None) -> list[dict[str, Any]]:
+
+    get_event_id = find_sports_error_catcher(client, search_query, poly_slug)
+
+    if not get_event_id:
+        raise ValueError(f"Fallback search failed for '{search_query}'.")
+
+    event_id = client.get_event(id=get_event_id)
+    return event_id
+
+
+# keep needed for naming
 def get_teams(client: Any, league: str) -> dict[str, dict[str, Any]]:
     """
     Returns the teams by league, helps with creating the poly slugs.
+    For naming the poly_slug in espn_schedule.py
     """
     teams_paginator = client.list_teams(league=league, page_size=10)
 
@@ -47,7 +59,7 @@ def get_teams(client: Any, league: str) -> dict[str, dict[str, Any]]:
         for team in all_teams
     }
 
-
+# keep searches the polymarket slug by search_query
 def find_sports_error_catcher(client: Any, search_query: str, target_slug: str) -> Optional[str]:
     """
     Searches Polymarket for a query and returns the Event ID if the slug matches.
@@ -64,7 +76,7 @@ def find_sports_error_catcher(client: Any, search_query: str, target_slug: str) 
     logger.warning(f"No match found for slug: {target_slug}")
     return None
 
-
+# keep takes a market_id info ->(maps) dict output
 def parse_market_to_dict(market: Market) -> dict[str, Any]:
     start_time = None
     if market.sports and market.sports.game_start_time:
@@ -112,16 +124,18 @@ def main():
 
     with PublicClient() as client:
         # Pass the active client into your utility functions
-        market_info = get_match_market(
+        market_info = get_match_market_by_id(
             client=client,
-            poly_slug="fifwc-fra-irq-2026-06-22",
-            search_query="France vs Iraq"
+            poly_slug="fifwc-nzl-bel-2026-06-26",
+            search_query="New Zealand vs Belgium",
         )
 
-        for market in market_info:
-            print(f"Question: {market['question']}")
-            print(f"Yes Price: {market['outcomes']['yes_outcome']['current_price']}")
-            print(f"No Price:  {market['outcomes']['no_outcome']['current_price']}\n")
+        # for market in market_info:
+        #     print(f"Question: {market['question']}")
+        #     print(f"Yes Price: {market['outcomes']['yes_outcome']['current_price']}")
+        #     print(f"No Price:  {market['outcomes']['no_outcome']['current_price']}\n")
+
+        print(market_info)
 
 
 if __name__ == "__main__":
