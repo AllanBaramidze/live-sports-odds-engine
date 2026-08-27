@@ -1,0 +1,24 @@
+services:
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    env_file:
+      - .env.local
+    volumes:
+      - postgres_data:/var/lib/postgresql
+
+  valkey:
+    image: valkey/valkey:latest
+    container_name: valkey
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    volumes:
+      - valkey_data:/data
+
+volumes:
+  postgres_data:
+  valkey_data:
