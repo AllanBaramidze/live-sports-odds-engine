@@ -3,4 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="uv (live-sports-odds-engine)" />
   </component>
+  <component name="ProjectRootManager" version="2" project-jdk-name="~/Documents/Code/live-sports-odds-engine-dev/.venv" project-jdk-type="Python SDK" />
 </project>

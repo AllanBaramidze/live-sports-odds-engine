@@ -6,7 +6,7 @@ def clean_event_data(data, sport, league):
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     mapped_games = []
     for event in events:
-        # Only include games scheduled for today
+        # Only include games scheduled for today (EST Timezone)
         event_date = event["date"][:10]
         if event_date != today:
             continue

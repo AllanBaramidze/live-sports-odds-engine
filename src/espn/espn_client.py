@@ -67,7 +67,7 @@ class ESPNClient:
             print(f"Request error fetching events: {e}")
             return []
 
-        data = r.json()
+        data = r.json() # pass data into clean_event_data
         return clean_event_data(data, self.sport, self.league)
 
     # Ingest Events into matches Database
