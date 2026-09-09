@@ -55,10 +55,12 @@ class ESPNClient:
     def clean_data(self):
         pass
 
-    # Returns a List of Events for the Day, based on Sport & League
     def get_events(self) -> list[dict]:
+        # Request schedule for the current local date so ESPN returns the correct day's games
+        today = datetime.now().astimezone().strftime("%Y%m%d")
+        params = {"dates": today}
         try:
-            r = httpx.get(self.URLschedule, timeout=10)
+            r = httpx.get(self.URLschedule, params=params, timeout=10)
             r.raise_for_status()
         except httpx.HTTPStatusError as e:
             print(f"HTTP error fetching events: {e}")
