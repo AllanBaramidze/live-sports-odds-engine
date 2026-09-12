@@ -5,13 +5,13 @@ from traceback import print_tb
 import httpx
 
 # Polymarket uses ET for all US sports slugs
-_POLYMARKET_TZ = ZoneInfo("America/New_York")
+POLYMARKET_TZ = ZoneInfo("America/New_York")
 
 
-def _to_slug_date(utc_date_str: str) -> str:
+def to_slug_date(utc_date_str: str) -> str:
     """Convert an ESPN UTC timestamp to the local game date used in Polymarket slugs."""
     dt = datetime.fromisoformat(utc_date_str.replace("Z", "+00:00"))
-    local_dt = dt.astimezone(_POLYMARKET_TZ)
+    local_dt = dt.astimezone(POLYMARKET_TZ)
     return local_dt.strftime("%Y-%m-%d")
 
 
@@ -52,7 +52,7 @@ def clean_event_data(data, sport, league):
             "home_team": home_team,
             "away_team": away_team,
             "game_status": game_status,
-            "poly_slug": poly_slug(league.value, away_team, home_team, _to_slug_date(date))
+            "poly_slug": poly_slug(league.value, away_team, home_team, to_slug_date(date))
         })
     return mapped_games
 

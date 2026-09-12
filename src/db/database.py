@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 from pathlib import Path
+from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
@@ -25,9 +26,14 @@ SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
 
 # Function to get DB session
-def get_db():
-    db = SessionLocal()
+@contextmanager
+def get_session():
+    session = SessionLocal()
     try:
-        yield db
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
     finally:
-        db.close()
+        session.close()

@@ -1,15 +1,10 @@
 import os
 import httpx
-import dotenv
 import pprint
-from datetime import datetime
-from dotenv import load_dotenv
-from pathlib import Path
+from datetime import datetime, timedelta
 from espn.espn_utils import clean_event_data
 from enum import StrEnum
 
-# Load env vars for DB connection
-load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env.local")
 
 
 class Sport(StrEnum):
@@ -51,14 +46,17 @@ class ESPNClient:
         print(f"Connection {'Successful' if success else 'Failed'}: {response.status_code}")
         return success
 
-    # Clean Old Event Data
-    def clean_data(self):
-        pass
-
     def get_events(self) -> list[dict]:
-        # Request schedule for the current local date so ESPN returns the correct day's games
-        today = datetime.now().astimezone().strftime("%Y%m%d")
-        params = {"dates": today}
+
+        # Date Range Handler Here for the URL Endpoint Scheduler to Get T(0) and T(0) + 1
+        today = datetime.now().astimezone().date()
+        tomorrow = today + timedelta(days=1)
+
+        start = today.strftime("%Y%m%d")
+        end = tomorrow.strftime("%Y%m%d")
+        params = {"dates": f"{start}-{end}", "limit": 500}
+
+        # Error Handling for URL response
         try:
             r = httpx.get(self.URLschedule, params=params, timeout=10)
             r.raise_for_status()
@@ -72,9 +70,6 @@ class ESPNClient:
         data = r.json() # pass data into clean_event_data
         return clean_event_data(data, self.sport, self.league)
 
-    # Ingest Events into matches Database
-    def ingest_events(self):
-        pass
 
 if __name__ == "__main__":
     client = ESPNClient(Sport.BASEBALL, League.MLB)
