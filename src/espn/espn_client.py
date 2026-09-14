@@ -48,6 +48,25 @@ class ESPNClient:
         return success
 
     def get_events(self) -> list[dict]:
+        """
+        Fetches events for the current date and the following day from the given URL endpoint.
+
+        This method builds a date range covering today and tomorrow and sends a GET request
+        to the predefined endpoint with these dates as parameters. The events data is then
+        cleaned and processed before being returned.
+
+        :raises httpx.HTTPStatusError: If the HTTP response status is not successful.
+        :raises httpx.RequestError: If there are connection issues or other request-related errors.
+        :param params: A dictionary containing query parameters for the HTTP GET request.
+                        The 'dates' parameter specifies the range in 'YYYYMMDD' format for
+                        today and tomorrow.
+                        The 'limit' parameter restricts the number of events to 500.
+                        This parameter is built programmatically and not user-supplied.
+
+        :return: A list of dictionaries containing cleaned event data. Each dictionary
+                 represents an event associated with the specified sport and league.
+        :rtype: list[dict]
+        """
 
         # Date Range Handler Here for the URL Endpoint Scheduler to Get T(0) and T(0) + 1
         today = datetime.now().astimezone().date()
