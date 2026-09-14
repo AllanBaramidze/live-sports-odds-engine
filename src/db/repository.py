@@ -4,6 +4,8 @@ It never creates sessions or commits. It knows nothing about ESPN's HTTP API.
 """
 
 from typing import Any
+
+from sqlalchemy import delete
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert
 from db.models import Matches
@@ -39,8 +41,12 @@ class MatchRepository:
         upsert_stmt = stmt.on_conflict_do_update(index_elements=["espn_id"], set_=update_cols)
         self.session.execute(upsert_stmt)
 
-    # Delete Matches Based on Completion
-    #TODO  def delete_matches(self, date: str) -> None:
+    #TODO Move Completed Matches == "FINAL" into a different table ("completed_matches")
+    # def completed_matches()
+
+
+
+
 
 
 # Querying Matches
