@@ -1,5 +1,5 @@
-from src.db.database import Base, engine
-from src.db import models
+from db.database import Base, engine
+from db import models
 
 def init_db():
     """Create tables in the database Postgres"""

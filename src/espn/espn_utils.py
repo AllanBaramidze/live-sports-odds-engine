@@ -16,6 +16,13 @@ def to_slug_date(utc_date_str: str) -> str:
 
 
 def clean_event_data(data, sport, league):
+    """
+    Match Information from ESPN API Cleaned up and ready to be stored in DB
+    :param data: the JSON data from ESPN API
+    :param sport:
+    :param league:
+    :return: A list of dictionaries containing game info
+    """
     events = data.get("events", [])  # Gets Games Info
     mapped_games = []
     for event in events:

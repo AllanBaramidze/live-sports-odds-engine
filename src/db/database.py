@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 from contextlib import contextmanager
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import sessionmaker, declarative_base, Session
 
 CURRENT_DIR = Path(__file__).resolve().parent
 
