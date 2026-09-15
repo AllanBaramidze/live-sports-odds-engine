@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 from traceback import print_tb
 
@@ -6,6 +6,9 @@ import httpx
 
 # Polymarket uses ET for all US sports slugs
 POLYMARKET_TZ = ZoneInfo("America/New_York")
+
+# How long to keep completed games before filtering them out
+FINAL_GAME_RETENTION = timedelta(days=1)
 
 
 def to_slug_date(utc_date_str: str) -> str:
@@ -28,9 +31,12 @@ def clean_event_data(data, sport, league):
     for event in events:
         status_type = event["status"]["type"]
 
-        # Skip games that are already final/completed
+        # Skip completed games only if they're older than the retention window.
+        # This keeps final games around for post-game processing (e.g. odds settlement).
         if status_type.get("state") == "post" or status_type.get("completed") is True:
-            continue
+            game_date = datetime.fromisoformat(event["date"].replace("Z", "+00:00"))
+            if datetime.now(timezone.utc) - game_date > FINAL_GAME_RETENTION:
+                continue
 
         espn_id = event["id"]
         date = event["date"]

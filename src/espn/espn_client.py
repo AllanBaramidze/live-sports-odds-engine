@@ -70,10 +70,11 @@ class ESPNClient:
 
         # Date Range Handler Here for the URL Endpoint Scheduler to Get T(0) and T(0) + 1
         today = datetime.now().astimezone().date()
+        yesterday = today - timedelta(days=1)
         tomorrow = today + timedelta(days=1)
-        # FIXME: Games that have been previously ingested are being missed because they are technically outside the window
+        # Games that have been previously ingested are being missed because they are technically outside the window
 
-        start = today.strftime("%Y%m%d")
+        start = yesterday.strftime("%Y%m%d")
         end = tomorrow.strftime("%Y%m%d")
         params = {"dates": f"{start}-{end}", "limit": 500}
 
