@@ -68,29 +68,31 @@ class ESPNClient:
         :rtype: list[dict]
         """
 
-        # Date Range Handler Here for the URL Endpoint Scheduler to Get T(0) and T(0) + 1
+        # ESPN API no longer supports date ranges (e.g. dates=20260915-20260917).
+        # Make separate requests per day instead.
         today = datetime.now().astimezone().date()
         yesterday = today - timedelta(days=1)
         tomorrow = today + timedelta(days=1)
-        # Games that have been previously ingested are being missed because they are technically outside the window
 
-        start = yesterday.strftime("%Y%m%d")
-        end = tomorrow.strftime("%Y%m%d")
-        params = {"dates": f"{start}-{end}", "limit": 500}
+        all_events = []
+        for day in [yesterday, today, tomorrow]:
+            date_str = day.strftime("%Y%m%d")
+            params = {"dates": date_str, "limit": 500}
 
-        # Error Handling for URL response
-        try:
-            r = httpx.get(self.URLschedule, params=params, timeout=10)
-            r.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            print(f"HTTP error fetching events: {e}")
-            return []
-        except httpx.RequestError as e:
-            print(f"Request error fetching events: {e}")
-            return []
+            try:
+                r = httpx.get(self.URLschedule, params=params, timeout=10)
+                r.raise_for_status()
+            except httpx.HTTPStatusError as e:
+                print(f"HTTP error fetching events for {date_str}: {e}")
+                continue
+            except httpx.RequestError as e:
+                print(f"Request error fetching events for {date_str}: {e}")
+                continue
 
-        data = r.json() # pass data into clean_event_data
-        return clean_event_data(data, self.sport, self.league)
+            data = r.json()
+            all_events.extend(clean_event_data(data, self.sport, self.league))
+
+        return all_events
 
     def insert_matches(self) -> int:
         """

@@ -1,8 +1,8 @@
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
-from traceback import print_tb
 
 import httpx
+import time
 
 # Polymarket uses ET for all US sports slugs
 POLYMARKET_TZ = ZoneInfo("America/New_York")
@@ -70,23 +70,39 @@ def clean_event_data(data, sport, league):
     return mapped_games
 
 
-def poly_slug(league: str, away_team: str, home_team: str, slug_date: str): #
+def _fetch_team_abbreviation(league: str, team_name: str) -> str | None:
+    """Fetch a team's abbreviation from the Polymarket API with retry logic."""
+    url = f"https://gamma-api.polymarket.com/teams?league={league}&name={team_name}"
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            resp = httpx.get(url, timeout=10)
+            resp.raise_for_status()
+            results = resp.json()
+            if results:
+                return results[0]["abbreviation"]
+            return None
+        except (httpx.HTTPStatusError, httpx.RequestError, IndexError, KeyError) as e:
+            if attempt < max_retries - 1:
+                wait = 2 ** attempt  # exponential backoff: 1s, 2s
+                time.sleep(wait)
+            else:
+                print(f"Failed to fetch abbreviation for '{team_name}' after {max_retries} attempts: {e}")
+                return None
+
+
+def poly_slug(league: str, away_team: str, home_team: str, slug_date: str) -> str:
     """
     Takes the Matchup, finds the event slug and returns it.
     Polymarket format: {league}-{away_abbr}-{home_abbr}-{YYYY-MM-DD}
     'matchup': 'St. Louis Cardinals at Los Angeles Dodgers'
     :return:
     """
+    home_abbr = _fetch_team_abbreviation(league, home_team)
+    away_abbr = _fetch_team_abbreviation(league, away_team)
 
-    url_home = f"https://gamma-api.polymarket.com/teams?league={league}&name={home_team}" # GET Search
-    url_away = f"https://gamma-api.polymarket.com/teams?league={league}&name={away_team}"
-
-
-    resp_home = httpx.get(url_home) # GET Request
-    resp_away = httpx.get(url_away)
-
-    home_abbr = resp_home.json()[0]["abbreviation"]
-    away_abbr = resp_away.json()[0]["abbreviation"]
+    if not home_abbr or not away_abbr:
+        return ""
 
     return f"{league}-{away_abbr}-{home_abbr}-{slug_date}"
 
