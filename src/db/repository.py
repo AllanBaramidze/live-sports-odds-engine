@@ -41,11 +41,6 @@ class MatchRepository:
         upsert_stmt = stmt.on_conflict_do_update(index_elements=["espn_id"], set_=update_cols)
         self.session.execute(upsert_stmt)
 
-    #TODO Move Completed Matches == "FINAL" into a different table ("completed_matches")
-    # def completed_matches()
-
-
-
 
 
 

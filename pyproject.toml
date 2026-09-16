@@ -3,6 +3,7 @@ name = "live-sports-odds-engine"
 version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = [
+    "alembic>=1.20.0",
     "httpx==0.28.1",
     "ipykernel>=7.3.0",
     "mypy>=2.3.1",
